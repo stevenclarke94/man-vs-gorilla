@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>100 Men vs 1 Gorilla</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #222;
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #333;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const numMen = 100;
+    const men = [];
+    const bullets = [];
+
+    const player = {
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      size: 10,
+      speed: 3,
+      color: "cyan",
+      alive: true,
+    };
+
+    const gorilla = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      size: 40,
+      speed: 1.5,
+      color: "brown",
+      hp: 100,
+    };
+
+    for (let i = 0; i < numMen - 1; i++) {
+      men.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: 10,
+        speed: 1 + Math.random() * 0.5,
+        color: "white",
+        alive: true,
+      });
+    }
+
+    function drawEntity(entity) {
+      ctx.fillStyle = entity.color;
+      ctx.beginPath();
+      ctx.arc(entity.x, entity.y, entity.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawAll() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawEntity(gorilla);
+      men.forEach(man => { if (man.alive) drawEntity(man); });
+      if (player.alive) drawEntity(player);
+
+      bullets.forEach(b => {
+        ctx.fillStyle = "yellow";
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.fillStyle = "white";
+      ctx.fillText("Gorilla HP: " + gorilla.hp, 20, 30);
+    }
+
+    function moveGorilla() {
+      const targets = [player, ...men.filter(m => m.alive)];
+      let closest = null;
+      let minDist = Infinity;
+
+      targets.forEach(t => {
+        const dx = t.x - gorilla.x;
+        const dy = t.y - gorilla.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < minDist) {
+          minDist = dist;
+          closest = t;
+        }
+      });
+
+      if (closest) {
+        const dx = closest.x - gorilla.x;
+        const dy = closest.y - gorilla.y;
+        const dist = Math.hypot(dx, dy);
+        gorilla.x += (dx / dist) * gorilla.speed;
+        gorilla.y += (dy / dist) * gorilla.speed;
+
+        if (dist < gorilla.size + closest.size) {
+          closest.alive = false;
+        }
+      }
+    }
+
+    function shootBullet(targetX, targetY) {
+      const angle = Math.atan2(targetY - player.y, targetX - player.x);
+      bullets.push({
+        x: player.x,
+        y: player.y,
+        dx: Math.cos(angle) * 6,
+        dy: Math.sin(angle) * 6,
+      });
+    }
+
+    function updateBullets() {
+      bullets.forEach((b, i) => {
+        b.x += b.dx;
+        b.y += b.dy;
+
+        const dx = b.x - gorilla.x;
+        const dy = b.y - gorilla.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist < gorilla.size) {
+          gorilla.hp -= 10;
+          bullets.splice(i, 1);
+        }
+      });
+    }
+
+    function handleInput(e) {
+      if (!player.alive) return;
+      switch (e.key) {
+        case "ArrowUp":
+        case "w": player.y -= player.speed; break;
+        case "ArrowDown":
+        case "s": player.y += player.speed; break;
+        case "ArrowLeft":
+        case "a": player.x -= player.speed; break;
+        case "ArrowRight":
+        case "d": player.x += player.speed; break;
+      }
+    }
+
+    function update() {
+      drawAll();
+      moveGorilla();
+      updateBullets();
+
+      if (!player.alive) {
+        ctx.fillStyle = "red";
+        ctx.font = "48px sans-serif";
+        ctx.fillText("You were defeated by the gorilla!", 50, 100);
+        return;
+      }
+
+      if (gorilla.hp <= 0) {
+        ctx.fillStyle = "lime";
+        ctx.font = "48px sans-serif";
+        ctx.fillText("You defeated the gorilla!", 50, 100);
+        return;
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    window.addEventListener("keydown", handleInput);
+    canvas.addEventListener("click", (e) => {
+      if (player.alive) shootBullet(e.clientX, e.clientY);
+    });
+
+    ctx.font = "20px sans-serif";
+    update();
+  </script>
+</body>
+
+</html>
